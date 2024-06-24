@@ -2,6 +2,12 @@
 /dist
 /node_modules
 
+# Carpeta generado al realizar docker compose
+postgres/
+
+# Variables de entorno
+.env
+
 # Logs
 logs
 *.log
