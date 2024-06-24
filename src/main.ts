@@ -10,6 +10,9 @@ async function bootstrap() {
   // CORS
   app.enableCors();
 
+  // prefijo de la api
+  app.setGlobalPrefix('api');
+
   await app.listen(process.env.PORT);
   logger.log(`App running on port: ${process.env.PORT}`);
 }
