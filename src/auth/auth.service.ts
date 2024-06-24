@@ -1,26 +1,58 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from './entities/user.entity';
+import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcrypt';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  private readonly logger = new Logger('AuthService');
+  async create(createUserDto: CreateUserDto) {
+    try {
+      const { password, ...userData } = createUserDto;
+
+      const user = this.userRepository.create({
+        ...userData,
+        password: bcrypt.hashSync(password, 10),
+      });
+      await this.userRepository.save(user);
+      delete user.password;
+      this.logger.log(`Usuario ${userData.email} creado exitosamente`);
+      return {
+        user: user,
+        token: this.getJwtToken({ id: user.id }),
+      };
+    } catch (error) {
+      this.handleDBErrors(error);
+    }
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  private getJwtToken(payload: JwtPayload) {
+    const token = this.jwtService.sign(payload);
+    return token;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+  private handleDBErrors(error: any): never {
+    if (error.code === '23505') {
+      this.logger.error(error.detail);
+      throw new BadRequestException(error.detail);
+    }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    console.log(error);
+    throw new InternalServerErrorException('Please check server logs');
   }
 }
